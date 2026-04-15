@@ -2,16 +2,24 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-const mysql = require("mysql2");
 const multer = require("multer");
 const path = require("path");
 const { Resend } = require("resend");
+const { Pool } = require("pg");
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
 const PORT = process.env.PORT || 3000;
+
+// =======================
+// DATABASE (POSTGRES - RENDER)
+// =======================
+const db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
 // =======================
 // RESEND EMAIL
@@ -25,39 +33,17 @@ app.use(express.static(__dirname));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// FIXED: cross-platform uploads folder (Render-safe)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // =======================
 // MULTER CONFIG
 // =======================
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/");
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+    destination: (req, file, cb) => cb(null, "uploads/"),
+    filename: (req, file, cb) =>
+        cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({ storage });
-
-// =======================
-// MYSQL (Render-safe via env vars)
-// =======================
-const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
-
-db.connect(err => {
-    if (err) {
-        console.error("DB Connection Error:", err);
-    } else {
-        console.log("Connected to MySQL");
-    }
-});
 
 // =======================
 // TEMP STORAGE
@@ -103,17 +89,17 @@ app.post("/login", async (req, res) => {
             text: `Your verification code is: ${code}`
         });
 
-        res.json({ success: true, message: "Verification code sent" });
+        res.json({ success: true });
     } catch (err) {
         console.error(err);
-        res.json({ success: false, message: "Error sending email" });
+        res.json({ success: false });
     }
 });
 
 // =======================
-// VERIFY CODE
+// VERIFY CODE (POSTGRES FIXED)
 // =======================
-app.post("/verify-code", (req, res) => {
+app.post("/verify-code", async (req, res) => {
     const email = req.body.email.trim().toLowerCase();
     const code = req.body.code;
 
@@ -133,29 +119,37 @@ app.post("/verify-code", (req, res) => {
     delete verificationCodes[email];
     delete verifyAttempts[email];
 
-    const sql = `INSERT INTO users (email) VALUES (?) ON DUPLICATE KEY UPDATE email=email`;
+    try {
+        await db.query(
+            "INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING",
+            [email]
+        );
 
-    db.query(sql, [email], (err) => {
-        if (err) return res.json({ success: false });
+        const result = await db.query(
+            "SELECT id FROM users WHERE email = $1",
+            [email]
+        );
 
-        db.query("SELECT id FROM users WHERE email = ?", [email], (err, rows) => {
-            if (err || rows.length === 0) {
-                return res.json({ success: false });
-            }
+        if (result.rows.length === 0) {
+            return res.json({ success: false });
+        }
 
-            res.json({
-                success: true,
-                user_id: rows[0].id,
-                email
-            });
+        res.json({
+            success: true,
+            user_id: result.rows[0].id,
+            email
         });
-    });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false });
+    }
 });
 
 // =======================
 // CREATE LISTING
 // =======================
-app.post("/createListing", upload.single("image"), (req, res) => {
+app.post("/createListing", upload.single("image"), async (req, res) => {
     const {
         course_code,
         title,
@@ -171,76 +165,82 @@ app.post("/createListing", upload.single("image"), (req, res) => {
     const image = req.file ? req.file.filename : null;
 
     if (!seller_email || !seller_id) {
-        return res.json({ success: false, message: "User not logged in" });
+        return res.json({ success: false });
     }
 
-    const sql = `
-        INSERT INTO listings 
-        (course_code, title, edition, price, book_condition, rating, description, seller_email, seller_id, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(sql, [
-        course_code,
-        title,
-        edition || null,
-        price,
-        book_condition,
-        rating || null,
-        description || null,
-        seller_email,
-        seller_id,
-        image
-    ], (err) => {
-        if (err) {
-            console.error(err);
-            return res.json({ success: false });
-        }
+    try {
+        await db.query(
+            `INSERT INTO listings 
+            (course_code, title, edition, price, book_condition, rating, description, seller_email, seller_id, image)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [
+                course_code,
+                title,
+                edition || null,
+                price,
+                book_condition,
+                rating || null,
+                description || null,
+                seller_email,
+                seller_id,
+                image
+            ]
+        );
 
         io.emit("newListing");
         res.json({ success: true });
-    });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false });
+    }
 });
 
 // =======================
 // GET LISTINGS
 // =======================
-app.get("/getListings", (req, res) => {
+app.get("/getListings", async (req, res) => {
     const course = req.query.course;
 
-    let sql = "SELECT * FROM listings";
-    const params = [];
+    try {
+        let sql = "SELECT * FROM listings";
+        let params = [];
 
-    if (course) {
-        sql += " WHERE course_code = ?";
-        params.push(course);
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    db.query(sql, params, (err, results) => {
-        if (err) {
-            console.error("GET LISTINGS ERROR:", err);
-            return res.json([]);
+        if (course) {
+            sql += " WHERE course_code = $1";
+            params.push(course);
         }
-        res.json(results);
-    });
+
+        sql += " ORDER BY created_at DESC";
+
+        const result = await db.query(sql, params);
+        res.json(result.rows);
+
+    } catch (err) {
+        console.error(err);
+        res.json([]);
+    }
 });
 
 // =======================
 // DELETE LISTING
 // =======================
-app.post("/deleteListing", (req, res) => {
+app.post("/deleteListing", async (req, res) => {
     const { id, seller_email } = req.body;
 
-    const sql = "DELETE FROM listings WHERE id = ? AND seller_email = ?";
-
-    db.query(sql, [id, seller_email], (err) => {
-        if (err) return res.json({ success: false });
+    try {
+        await db.query(
+            "DELETE FROM listings WHERE id = $1 AND seller_email = $2",
+            [id, seller_email]
+        );
 
         io.emit("newListing");
         res.json({ success: true });
-    });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false });
+    }
 });
 
 // =======================
@@ -249,29 +249,35 @@ app.post("/deleteListing", (req, res) => {
 io.on("connection", (socket) => {
     socket.on("joinRoom", (room) => socket.join(room));
 
-    socket.on("sendMessage", (data) => {
-        db.query(
-            "INSERT INTO messages (sender_id, receiver_id, message, listing_id, course_code, book_title) VALUES (?, ?, ?, ?, ?, ?)",
-            [
-                data.sender_id,
-                data.receiver_id,
-                data.message,
-                data.listing_id || null,
-                data.course_code || null,
-                data.book_title || null
-            ]
-        );
+    socket.on("sendMessage", async (data) => {
+        try {
+            await db.query(
+                `INSERT INTO messages 
+                (sender_id, receiver_id, message, listing_id, course_code, book_title)
+                VALUES ($1,$2,$3,$4,$5,$6)`,
+                [
+                    data.sender_id,
+                    data.receiver_id,
+                    data.message,
+                    data.listing_id || null,
+                    data.course_code || null,
+                    data.book_title || null
+                ]
+            );
 
-        io.to(data.room).emit("receiveMessage", {
-            ...data,
-            listing_id: data.listing_id || null,
-            timestamp: new Date().toISOString()
-        });
+            io.to(data.room).emit("receiveMessage", {
+                ...data,
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (err) {
+            console.error(err);
+        }
     });
 });
 
 // =======================
-// START SERVER (ONLY ONCE)
+// START SERVER
 // =======================
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
