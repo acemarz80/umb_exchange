@@ -1,155 +1,96 @@
 let emailGlobal = "";
-let resendCooldown = false;
 
 // =======================
-// LOGIN SUBMIT
+// EMAIL SUBMIT
 // =======================
-document.getElementById("loginForm").addEventListener("submit", function(e){
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const emailInput = document.getElementById("email");
-    const email = emailInput.value.trim().toLowerCase();
+    const email = document.getElementById("email").value.trim().toLowerCase();
 
-    if(!email.endsWith("@umb.edu")){
+    if (!email.endsWith("@umb.edu")) {
         document.getElementById("message").innerText = "Only UMB students can login.";
         return;
     }
 
     emailGlobal = email;
 
-    sendCode(email);
+    await fetch("/createUserIfNotExists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+    });
+
+    const res = await fetch("/generate-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+        showQR(data.qr);
+    } else {
+        document.getElementById("message").innerText = "QR error.";
+    }
 });
 
 // =======================
-// SEND CODE (USED FOR LOGIN + RESEND)
+// SHOW QR
 // =======================
-function sendCode(email) {
-    fetch("/login", {
-        method: "POST",
-        headers: {
-            "Content-Type":"application/json"
-        },
-        body: JSON.stringify({ email })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        document.getElementById("message").innerText = 
-            "Verification code sent! Check your inbox.";
-
-        if(data.success){
-            showCodeInput();
-            startResendCooldown();
-        }
-    });
-}
-
-// =======================
-// SHOW CODE SCREEN
-// =======================
-function showCodeInput() {
-
-    const form = document.getElementById("loginForm");
-
-    // 🔥 HIDE email form completely
-    form.style.display = "none";
-
-    // prevent duplicates
-    if (document.getElementById("codeSection")) return;
-
-    const container = document.querySelector(".login-container");
+function showQR(qr) {
+    document.getElementById("loginForm").style.display = "none";
 
     const div = document.createElement("div");
-    div.id = "codeSection";
+    div.id = "authSection";
 
     div.innerHTML = `
-        <input type="text" id="code" placeholder="Enter verification code">
+        <p>Scan with Microsoft Authenticator</p>
+        <img src="${qr}" width="200">
 
-        <button onclick="verifyCode()">Verify</button>
+        <input id="token" type="text" placeholder="6-digit code">
 
-        <button id="resendBtn" onclick="resendCode()">Resend Code</button>
+        <button onclick="verifyToken()">Verify</button>
 
-        <button onclick="goBackToEmail()" class="back-btn">← Back</button>
+        <p id="message"></p>
     `;
 
-    container.appendChild(div);
+    document.querySelector(".login-container").appendChild(div);
+
+    setTimeout(() => {
+        document.getElementById("token").focus();
+    }, 100);
 }
 
 // =======================
-// RESEND CODE
+// VERIFY
 // =======================
-function resendCode() {
-    if (resendCooldown) return;
-    sendCode(emailGlobal);
-}
+async function verifyToken() {
+    const input = document.getElementById("token");
+    const token = input ? input.value.trim() : "";
 
-// =======================
-// COOLDOWN TIMER (30s)
-// =======================
-function startResendCooldown() {
-    resendCooldown = true;
+    console.log("TOKEN:", token);
 
-    const btn = document.getElementById("resendBtn");
-    let timeLeft = 30;
+    if (!token) {
+        document.getElementById("message").innerText =
+            "Please enter the code from Microsoft Authenticator.";
+        return;
+    }
 
-    btn.disabled = true;
-    btn.innerText = `Resend (${timeLeft}s)`;
-
-    const interval = setInterval(() => {
-        timeLeft--;
-        btn.innerText = `Resend (${timeLeft}s)`;
-
-        if (timeLeft <= 0) {
-            clearInterval(interval);
-            resendCooldown = false;
-            btn.disabled = false;
-            btn.innerText = "Resend Code";
-        }
-    }, 1000);
-}
-
-// =======================
-// BACK BUTTON
-// =======================
-function goBackToEmail() {
-
-    const codeSection = document.getElementById("codeSection");
-    if (codeSection) codeSection.remove();
-
-    // 🔥 SHOW email form again
-    document.getElementById("loginForm").style.display = "block";
-
-    document.getElementById("message").innerText = "";
-}
-
-// =======================
-// VERIFY CODE
-// =======================
-function verifyCode() {
-
-    const code = document.getElementById("code").value;
-
-    fetch("/verify-code", {
+    const res = await fetch("/verify-2fa", {
         method: "POST",
-        headers: {
-            "Content-Type":"application/json"
-        },
-        body: JSON.stringify({
-            email: emailGlobal,
-            code: code
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        document.getElementById("message").innerText = data.message;
-
-        if(data.success){
-            // ✅ Store using keys expected by sell.html
-            localStorage.setItem("userEmail", data.email);
-            localStorage.setItem("userId", data.user_id);
-
-            window.location.href = "mainpage.html";
-        }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailGlobal, token })
     });
+
+    const data = await res.json();
+
+    if (data.success) {
+        localStorage.setItem("userEmail", data.email);
+        localStorage.setItem("userId", data.user_id);
+        window.location.href = "mainpage.html";
+    } else {
+        document.getElementById("message").innerText = data.message;
+    }
 }
