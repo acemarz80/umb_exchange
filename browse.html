@@ -666,7 +666,7 @@ function filterFromSearch() {
 
     courses.forEach(course => {
 
-        const courseTitle = course.querySelector("h4").textContent.replace(" ", "").toUpperCase();
+        const courseTitle = course.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
 
         if(courseTitle.includes(courseSearch.toUpperCase())){
             course.style.display = "block";
@@ -721,7 +721,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateUI() {
         document.querySelectorAll(".course-card").forEach(card => {
-            const title = card.querySelector("h4").textContent.replace(" ", "");
+            const title = card.querySelector("h4").textContent.replace(/\s/g, "");
             const courseCode = title.toUpperCase();
 
             const count = courseData[courseCode]?.count || 0;
@@ -743,8 +743,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (sortType === "mostListings") {
             cards.sort((a, b) => {
-                const aCode = a.querySelector("h4").textContent.replace(" ", "").toUpperCase();
-                const bCode = b.querySelector("h4").textContent.replace(" ", "").toUpperCase();
+                const aCode = a.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
+                const bCode = b.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
 
                 const aCount = courseData[aCode]?.count || 0;
                 const bCount = courseData[bCode]?.count || 0;
@@ -755,8 +755,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (sortType === "mostRecent") {
             cards.sort((a, b) => {
-                const aCode = a.querySelector("h4").textContent.replace(" ", "").toUpperCase();
-                const bCode = b.querySelector("h4").textContent.replace(" ", "").toUpperCase();
+                const aCode = a.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
+                const bCode = b.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
 
                 const aTime = courseData[aCode]?.latest || 0;
                 const bTime = courseData[bCode]?.latest || 0;

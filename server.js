@@ -218,6 +218,35 @@ app.post("/createListing", upload.single("image"), async (req, res) => {
 });
 
 // =======================
+// GET LISTINGS
+// =======================
+app.get("/getListings", async (req, res) => {
+    const course = req.query.course;
+
+    try {
+        let sql = "SELECT * FROM listings";
+        let params = [];
+
+        if (course) {
+            sql += " WHERE course_code = $1";
+            params.push(course);
+        }
+
+        sql += " ORDER BY created_at DESC";
+
+        const result = await db.query(sql, params);
+
+        console.log("📦 Listings fetched:", result.rows.length);
+
+        res.json(result.rows);
+
+    } catch (err) {
+        console.error("❌ GET LISTINGS ERROR:", err);
+        res.json([]);
+    }
+});
+
+// =======================
 // START SERVER
 // =======================
 server.listen(PORT, () => {
