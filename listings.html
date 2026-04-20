@@ -101,7 +101,6 @@ function contactSeller(sellerId, listingId, courseCode, title) {
         return;
     }
 
-    // prevent messaging yourself
     if (userId == sellerId) {
         alert("This is your listing.");
         return;
@@ -109,6 +108,13 @@ function contactSeller(sellerId, listingId, courseCode, title) {
 
     window.location.href =
         `messages.html?receiver_id=${sellerId}&listing_id=${listingId}&course=${courseCode}&title=${encodeURIComponent(title)}`;
+}
+
+
+// 🖼️ Build image URL safely
+function getImageUrl(image) {
+    if (!image) return "placeholder.png"; // make sure you add this file
+    return `/uploads/${image}`;
 }
 
 
@@ -131,9 +137,12 @@ async function loadListings() {
         const div = document.createElement("div");
         div.className = "listing-card";
 
+        const imageUrl = getImageUrl(item.image);
+
         div.innerHTML = `
-            ${item.image ? `<img src="/uploads/${item.image}" class="listing-img">` : ""}
-            
+            <img src="${imageUrl}" class="listing-img"
+                 onerror="this.src='placeholder.png'">
+
             <h4>${item.title}</h4>
             <div class="listing-price">$${item.price}</div>
 
@@ -143,6 +152,9 @@ async function loadListings() {
             ${getStars(item.rating)}
 
             <p>${item.description || ""}</p>
+
+            <!-- ✅ NEW: SELLER EMAIL -->
+            <p><strong>Seller:</strong> ${item.seller_email}</p>
 
             <div>
                 ${currentUser != item.seller_id ? `
@@ -189,6 +201,3 @@ socket.on("newListing", () => loadListings());
 
 loadListings();
 </script>
-
-</body>
-</html>
