@@ -6,14 +6,12 @@
     <title>Course Listings</title>
 
     <style>
-        /* ⭐ Star styling */
         .stars {
             color: #f5b301;
             font-size: 18px;
             margin: 5px 0;
         }
 
-        /* 🔴 Delete button */
         .delete-btn {
             background-color: #990000;
             color: white;
@@ -31,7 +29,6 @@
             transform: scale(1.05);
         }
 
-        /* 🔵 Contact button */
         .contact-btn {
             background-color: #005a9c;
             color: white;
@@ -111,10 +108,10 @@ function contactSeller(sellerId, listingId, courseCode, title) {
 }
 
 
-// 🖼️ Build image URL safely
+// 🖼️ Cloudinary image handler (UPDATED)
 function getImageUrl(image) {
-    if (!image) return "placeholder.png"; // make sure you add this file
-    return `/uploads/${image}`;
+    if (!image) return "placeholder.png"; // fallback image
+    return image; // ✅ Cloudinary already gives full URL
 }
 
 
@@ -153,7 +150,6 @@ async function loadListings() {
 
             <p>${item.description || ""}</p>
 
-            <!-- ✅ NEW: SELLER EMAIL -->
             <p><strong>Seller:</strong> ${item.seller_email}</p>
 
             <div>
@@ -201,3 +197,6 @@ socket.on("newListing", () => loadListings());
 
 loadListings();
 </script>
+
+</body>
+</html>
