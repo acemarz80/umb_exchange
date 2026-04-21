@@ -9,8 +9,8 @@ body {
     align-items: center;
     justify-content: space-between;
     background: linear-gradient(to bottom, #003366, #00264D);
-    padding: 12px 30px;
-    border-bottom: 4px solid #FFCC00; /* Gold stripe */
+    padding: 10px 20px;
+    flex-wrap: wrap; 
 }
 
 /* Logo */

@@ -260,6 +260,54 @@ app.get("/getListings", async (req, res) => {
 });
 
 // =======================
+// GET MY LISTINGS
+// =======================
+app.get("/myListings", async (req, res) => {
+    const userId = req.query.user_id;
+
+    try {
+        const result = await db.query(
+            "SELECT * FROM listings WHERE seller_id = $1 ORDER BY created_at DESC",
+            [userId]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.json([]);
+    }
+});
+
+// =======================
+// DELETE LISTING
+// =======================
+app.post("/deleteListing", async (req, res) => {
+    const { id, seller_email } = req.body;
+
+    try {
+        const result = await db.query(
+            "DELETE FROM listings WHERE id = $1 AND seller_email = $2 RETURNING *",
+            [id, seller_email]
+        );
+
+        if (result.rowCount === 0) {
+            console.log("❌ Delete failed (not owner or not found)");
+            return res.json({ success: false });
+        }
+
+        console.log("🗑️ Listing deleted:", id);
+
+        io.emit("newListing"); // update UI everywhere
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false });
+    }
+});
+
+// =======================
 // START SERVER
 // =======================
 server.listen(PORT, () => {
