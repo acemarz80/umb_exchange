@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Edit Profile</title>
+<link rel="stylesheet" href="stylesheet.css">
+
+<style>
+.edit-container {
+    padding: 25px;
+    max-width: 500px;
+    margin: auto;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.avatar-grid {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.avatar.selected {
+    border: 2px solid #003366;
+}
+
+button {
+    padding: 10px 15px;
+    background: #003366;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="edit-container">
+
+    <h2>Edit Profile</h2>
+
+    <input type="text" id="username" placeholder="Username">
+
+    <h3>Choose Avatar</h3>
+
+    <div class="avatar-grid">
+        <img src="avatars/avatar1.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar1.png">
+        <img src="avatars/avatar2.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar2.png">
+        <img src="avatars/avatar3.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar3.png">
+        <img src="avatars/avatar4.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar4.png">
+    </div>
+
+    <button onclick="saveProfile()">Save Changes</button>
+
+</div>
+
+<script>
+
+let selectedAvatar = localStorage.getItem("avatar") || "avatar1.png";
+
+// preload current values
+document.getElementById("username").value =
+    localStorage.getItem("username") || "";
+
+// mark current avatar selected
+window.onload = () => {
+    document.querySelectorAll(".avatar").forEach(img => {
+        if (img.dataset.avatar === selectedAvatar) {
+            img.classList.add("selected");
+        }
+    });
+};
+
+// select avatar
+function selectAvatar(img) {
+    document.querySelectorAll(".avatar").forEach(a => a.classList.remove("selected"));
+    img.classList.add("selected");
+    selectedAvatar = img.dataset.avatar;
+}
+
+// save changes
+async function saveProfile() {
+    const username = document.getElementById("username").value.trim();
+    const email = localStorage.getItem("userEmail");
+
+    const finalUsername = username || email;
+
+    const res = await fetch("/saveProfileSetup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email,
+            username: finalUsername,
+            avatar: selectedAvatar
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+        localStorage.setItem("username", finalUsername);
+        localStorage.setItem("avatar", selectedAvatar);
+
+        alert("Profile updated!");
+        window.location.href = "profile.html";
+    } else {
+        alert("Failed to update profile");
+    }
+}
+
+</script>
+
+</body>
+</html>

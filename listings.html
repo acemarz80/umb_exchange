@@ -46,6 +46,17 @@
             background-color: #0073cc;
             transform: scale(1.05);
         }
+
+        /* ✅ NEW: seller link styling */
+        .seller-link {
+            color: #003366;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .seller-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -109,13 +120,24 @@ function contactSeller(sellerId, listingId, courseCode, title) {
 }
 
 
-// 🖼️ Cloudinary image handler (UPDATED)
+// 🖼️ Cloudinary image handler
 function getImageUrl(image) {
-    if (!image) return "placeholder.png"; // fallback image
-    return image; // ✅ Cloudinary already gives full URL
+    if (!image) return "placeholder.png";
+    return image;
 }
 
 
+// =======================
+// 🔥 SELLER NAME HELPER
+// =======================
+function getSellerName(item) {
+    return item.username || item.seller_email;
+}
+
+
+// =======================
+// LOAD LISTINGS
+// =======================
 async function loadListings() {
     const url = course ? `/getListings?course=${course}` : '/getListings';
     const res = await fetch(url);
@@ -151,7 +173,24 @@ async function loadListings() {
 
             <p>${item.description || ""}</p>
 
-            <p><strong>Seller:</strong> ${item.seller_email}</p>
+            <!-- ✅ UPDATED SELLER SECTION -->
+           <p>
+    <strong>Seller:</strong>
+    <a class="seller-link"
+       href="user-profile.html?user_id=${item.seller_id}"
+       style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+
+        <img 
+            src="${item.avatar ? 'avatars/' + item.avatar : 'avatars/default-avatar.png'}"
+            onerror="this.src='avatars/default-avatar.png'"
+            style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+
+        <span>
+            ${item.username || item.seller_email}
+        </span>
+
+    </a>
+</p>
 
             <div>
                 ${currentUser != item.seller_id ? `

@@ -10,6 +10,42 @@
     padding: 20px;
 }
 
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.profile-header img {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ccc;
+}
+
+.profile-info h3 {
+    margin: 0;
+}
+
+.profile-info p {
+    margin: 3px 0 0 0;
+    color: gray;
+    font-size: 14px;
+}
+
+.edit-btn {
+    margin-left: auto;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #003366;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
 .listing-card {
     border: 1px solid #ccc;
     padding: 15px;
@@ -50,15 +86,62 @@
         <a href="mainpage.html">Home</a>
         <a href="sell.html">Sell</a>
         <a href="messages.html">Messages</a>
+        <a href="profile.html">Profile</a>
     </div>
 </nav>
 
 <div class="profile-container">
+
+    <!-- PROFILE HEADER -->
+    <div class="profile-header">
+        <img id="profileAvatar" src="avatars/default-avatar.png">
+
+        <div class="profile-info">
+            <h3 id="profileUsername">Loading...</h3>
+            <p id="profileEmail"></p>
+        </div>
+
+        <button class="edit-btn" onclick="goToEditProfile()">
+            Edit Profile
+        </button>
+    </div>
+
     <h2>My Listings</h2>
     <div id="myListings"></div>
 </div>
 
 <script>
+
+// =======================
+// SAFETY CHECK
+// =======================
+const userId = localStorage.getItem("userId");
+
+if (!userId) {
+    window.location.href = "login.html";
+}
+
+// =======================
+// LOAD PROFILE INFO
+// =======================
+function loadProfileInfo() {
+    document.getElementById("profileUsername").innerText =
+        localStorage.getItem("username") || localStorage.getItem("userEmail");
+
+    document.getElementById("profileAvatar").src =
+        "avatars/" + (localStorage.getItem("avatar") || "default-avatar.png");
+}
+
+// =======================
+// EDIT PROFILE
+// =======================
+function goToEditProfile() {
+    window.location.href = "profile-edit.html";
+}
+
+// =======================
+// LISTINGS
+// =======================
 async function loadMyListings() {
     const userId = localStorage.getItem("userId");
 
@@ -97,11 +180,11 @@ async function loadMyListings() {
     });
 }
 
-
-// 🗑️ DELETE (with confirmation)
+// =======================
+// DELETE
+// =======================
 async function deleteListing(id) {
     const confirmDelete = confirm("Are you sure you want to delete this listing?");
-
     if (!confirmDelete) return;
 
     const seller_email = localStorage.getItem("userEmail");
@@ -115,11 +198,11 @@ async function deleteListing(id) {
     loadMyListings();
 }
 
-
-// ✅ MARK AS SOLD (also deletes)
+// =======================
+// MARK SOLD
+// =======================
 async function markSold(id) {
     const confirmSold = confirm("Mark this item as sold?");
-
     if (!confirmSold) return;
 
     const seller_email = localStorage.getItem("userEmail");
@@ -133,9 +216,12 @@ async function markSold(id) {
     loadMyListings();
 }
 
-
-// load on page start
+// =======================
+// INIT
+// =======================
+loadProfileInfo();
 loadMyListings();
+
 </script>
 
 </body>

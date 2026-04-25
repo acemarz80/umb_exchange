@@ -36,14 +36,12 @@ app.use(express.urlencoded({ extended: true }));
 const { v2: cloudinary } = require("cloudinary");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
-// Cloudinary config
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Storage config
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
@@ -143,33 +141,17 @@ app.post("/verify-2fa", async (req, res) => {
 
     try {
         const result = await db.query(
-            "SELECT id, auth_secret FROM users WHERE email = $1",
+            "SELECT id, email, auth_secret, username, avatar FROM users WHERE email = $1",
             [email]
         );
 
         if (result.rows.length === 0) {
-            console.log("❌ USER NOT FOUND:", email);
             return res.json({ success: false, message: "User not found" });
         }
 
         const user = result.rows[0];
 
-        if (!user.auth_secret) {
-            console.log("❌ NO AUTH SECRET FOR USER:", email);
-            return res.json({ success: false, message: "No 2FA setup" });
-        }
-
-        // Clean token (IMPORTANT)
         const cleanToken = token ? token.replace(/\s/g, "") : "";
-
-        // DEBUG LOGS
-        console.log("====================================");
-        console.log("EMAIL:", email);
-        console.log("TOKEN RAW:", token);
-        console.log("TOKEN CLEAN:", cleanToken);
-        console.log("TOKEN LENGTH:", cleanToken.length);
-        console.log("DB SECRET EXISTS:", !!user.auth_secret);
-        console.log("====================================");
 
         const verified = speakeasy.totp.verify({
             secret: user.auth_secret,
@@ -178,27 +160,86 @@ app.post("/verify-2fa", async (req, res) => {
             window: 2
         });
 
-        console.log("VERIFICATION RESULT:", verified);
-
         if (!verified) {
             return res.json({ success: false, message: "Invalid code" });
         }
 
-        console.log("✅ 2FA SUCCESS:", email);
-
-        return res.json({
+        res.json({
             success: true,
+            email: user.email,
             user_id: user.id,
-            email
+            username: user.username,
+            avatar: user.avatar
         });
 
     } catch (err) {
-        console.error("❌ 2FA VERIFY ERROR:", err);
+        console.error(err);
         return res.json({ success: false });
     }
 });
+
 // =======================
-// LISTINGS (UNCHANGED)
+// SAVE PROFILE SETUP
+// =======================
+app.post("/saveProfileSetup", async (req, res) => {
+    const { email, username, avatar } = req.body;
+
+    try {
+        await db.query(
+            "UPDATE users SET username = $1, avatar = $2 WHERE email = $3",
+            [username, avatar, email]
+        );
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false });
+    }
+});
+
+// =======================
+// 🔥 NEW: GET USER BY ID (PUBLIC PROFILE)
+// =======================
+app.get("/getUserById", async (req, res) => {
+    const { id } = req.query;
+
+    try {
+        const result = await db.query(
+            "SELECT id, email, username, avatar FROM users WHERE id = $1",
+            [id]
+        );
+
+        res.json(result.rows[0] || {});
+
+    } catch (err) {
+        console.error(err);
+        res.json({});
+    }
+});
+
+// =======================
+// 🔥 NEW: GET LISTINGS BY USER (PUBLIC PROFILE)
+// =======================
+app.get("/getListingsByUser", async (req, res) => {
+    const { user_id } = req.query;
+
+    try {
+        const result = await db.query(
+            "SELECT * FROM listings WHERE seller_id = $1 ORDER BY created_at DESC",
+            [user_id]
+        );
+
+        res.json(result.rows);
+
+    } catch (err) {
+        console.error(err);
+        res.json([]);
+    }
+});
+
+// =======================
+// CREATE LISTING
 // =======================
 app.post("/createListing", upload.single("image"), async (req, res) => {
     const {
@@ -237,19 +278,25 @@ app.get("/getListings", async (req, res) => {
     const course = req.query.course;
 
     try {
-        let sql = "SELECT * FROM listings";
+        let sql = `
+            SELECT 
+                listings.*,
+                users.username,
+                users.avatar
+            FROM listings
+            JOIN users ON listings.seller_id = users.id
+        `;
+
         let params = [];
 
         if (course) {
-            sql += " WHERE course_code = $1";
+            sql += " WHERE listings.course_code = $1";
             params.push(course);
         }
 
-        sql += " ORDER BY created_at DESC";
+        sql += " ORDER BY listings.created_at DESC";
 
         const result = await db.query(sql, params);
-
-        console.log("📦 Listings fetched:", result.rows.length);
 
         res.json(result.rows);
 
@@ -260,7 +307,7 @@ app.get("/getListings", async (req, res) => {
 });
 
 // =======================
-// GET MY LISTINGS
+// MY LISTINGS
 // =======================
 app.get("/myListings", async (req, res) => {
     const userId = req.query.user_id;
@@ -272,6 +319,7 @@ app.get("/myListings", async (req, res) => {
         );
 
         res.json(result.rows);
+
     } catch (err) {
         console.error(err);
         res.json([]);
@@ -291,13 +339,10 @@ app.post("/deleteListing", async (req, res) => {
         );
 
         if (result.rowCount === 0) {
-            console.log("❌ Delete failed (not owner or not found)");
             return res.json({ success: false });
         }
 
-        console.log("🗑️ Listing deleted:", id);
-
-        io.emit("newListing"); // update UI everywhere
+        io.emit("newListing");
 
         res.json({ success: true });
 

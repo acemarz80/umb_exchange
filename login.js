@@ -115,10 +115,17 @@ async function verifyToken() {
     const data = await res.json();
 
     if (data.success) {
-        localStorage.setItem("userEmail", data.email);
-        localStorage.setItem("userId", data.user_id);
-        window.location.href = "mainpage.html";
+    localStorage.setItem("userEmail", data.email);
+    localStorage.setItem("userId", data.user_id);
+    localStorage.setItem("username", data.username || "");
+    localStorage.setItem("avatar", data.avatar || "default-avatar.png");
+
+    if (!data.username || data.username.trim() === "") {
+        window.location.href = "setup-profile.html";
     } else {
-        document.getElementById("message").innerText = data.message;
+        window.location.href = "mainpage.html";
     }
+} else {
+    document.getElementById("message").innerText = data.message;
+}
 }

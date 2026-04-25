@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Setup Profile - UMB Exchange</title>
+<link rel="stylesheet" href="setup-profile.css">
+</head>
+<body>
+
+<div class="setup-container">
+    <h2>Welcome to UMB Exchange</h2>
+    <p>Create your student profile (optional)</p>
+
+    <input type="text" id="username" placeholder="Choose a username">
+
+    <h3>Select an Avatar</h3>
+
+    <div class="avatar-grid">
+        <img src="avatars/avatar1.png" class="avatar-option selected" onclick="selectAvatar(this)" data-avatar="avatar1.png">
+        <img src="avatars/avatar2.png" class="avatar-option" onclick="selectAvatar(this)" data-avatar="avatar2.png">
+        <img src="avatars/avatar3.png" class="avatar-option" onclick="selectAvatar(this)" data-avatar="avatar3.png">
+        <img src="avatars/avatar4.png" class="avatar-option" onclick="selectAvatar(this)" data-avatar="avatar4.png">
+    </div>
+
+    <button onclick="saveProfile()">Continue to Marketplace</button>
+</div>
+
+<script src="setup-profile.js"></script>
+</body>
+</html>
