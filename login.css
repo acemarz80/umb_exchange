@@ -150,10 +150,59 @@ body {
     text-decoration: underline;
 }
 
-.terms-text {
-    font-size: 12px;
+.terms-box {
+    margin: 15px 0;
+    font-size: 13px;
+    text-align: left;
+    max-width: 320px;
+}
+
+.terms-box label {
+    color: #333;
+}
+
+#openTerms {
+    color: #0056b3;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background: white;
+    margin: 8% auto;
+    padding: 25px;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 12px;
+    text-align: left;
+    line-height: 1.5;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: #003366;
+}
+
+.modal-content ul {
+    padding-left: 20px;
+}
+
+.close-btn {
+    float: right;
+    font-size: 28px;
+    cursor: pointer;
     color: #666;
-    margin-top: 10px;
-    text-align: center;
-    max-width: 300px;
 }

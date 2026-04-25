@@ -1,12 +1,40 @@
 let emailGlobal = "";
 
 // =======================
+// TERMS MODAL
+// =======================
+const termsModal = document.getElementById("termsModal");
+const openTerms = document.getElementById("openTerms");
+const closeTerms = document.getElementById("closeTerms");
+
+openTerms.onclick = () => {
+    termsModal.style.display = "block";
+};
+
+closeTerms.onclick = () => {
+    termsModal.style.display = "none";
+};
+
+window.onclick = (event) => {
+    if (event.target == termsModal) {
+        termsModal.style.display = "none";
+    }
+};
+
+// =======================
 // EMAIL SUBMIT
 // =======================
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = document.getElementById("email").value.trim().toLowerCase();
+    const agreed = document.getElementById("agreeTerms").checked;
+
+    if (!agreed) {
+        document.getElementById("message").innerText =
+            "You must agree to the Terms of Service before logging in.";
+        return;
+    }
 
     if (!email.endsWith("@umb.edu")) {
         document.getElementById("message").innerText = "Only UMB students can login.";
