@@ -38,6 +38,15 @@
         .dropdown-item:hover {
             background-color: #f0f0f0;
         }
+        .star-rating span {
+    font-size: 24px;
+    cursor: pointer;
+    color: #ccc;
+}
+
+.star-rating span.active {
+    color: #f5b301;
+}
     </style>
 </head>
 <body>
@@ -58,7 +67,7 @@
 
         <input type="text" id="title" placeholder="Book Title" required>
         <input type="text" id="edition" placeholder="Edition (ex: 5th Edition)">
-        <input type="number" id="price" placeholder="Price" step="0.01" required>
+        <input type="number" id="price" placeholder="$ Price" step="0.01" required>
 
         <select id="book_condition" required>
             <option value="">Select Condition</option>
@@ -68,8 +77,16 @@
             <option value="Used">Used</option>
         </select>
 
-        <label>How useful was this book?</label>
-        <div class="star-rating">
+        <label>
+            How useful was this textbook for the class?
+        </label>
+
+        <p style="font-size: 13px; color: #555; margin-top: -5px;">
+            1★ = Not useful / barely used  
+            <br>5★ = Extremely useful / heavily relied on for exams & assignments
+        </p>
+
+        <div class="star-rating" id="starContainer">
             <span data-value="1">★</span>
             <span data-value="2">★</span>
             <span data-value="3">★</span>
@@ -77,7 +94,10 @@
             <span data-value="5">★</span>
         </div>
 
-        <input type="hidden" id="rating">
+        <input type="hidden" id="rating" required>
+        <p id="ratingError" style="color:red; display:none; font-size:13px;">
+            Please select a rating before continuing.
+        </p>
 
         <textarea id="description" placeholder="Optional description..."></textarea>
 
@@ -89,16 +109,23 @@
 </div>
 
 <script>
-// ⭐ STAR RATING
+// ⭐ STAR RATING (REQUIRED)
 const stars = document.querySelectorAll(".star-rating span");
 const ratingInput = document.getElementById("rating");
+const ratingError = document.getElementById("ratingError");
 
 stars.forEach(star => {
     star.addEventListener("click", () => {
-        const value = star.getAttribute("data-value");
+        const value = parseInt(star.getAttribute("data-value"));
+
         ratingInput.value = value;
+        ratingError.style.display = "none";
+
         stars.forEach(s => s.classList.remove("active"));
-        for (let i = 0; i < value; i++) stars[i].classList.add("active");
+
+        for (let i = 0; i < value; i++) {
+            stars[i].classList.add("active");
+        }
     });
 });
 
@@ -130,7 +157,29 @@ const courses = [
     "BIOL347","BIOL348","BIOL352","BIOL353","BIOL354","BIOL355","BIOL356","BIOL357",
     "BIOL358","BIOL360","BIOL361","BIOL362","BIOL363","BIOL364","BIOL365","BIOL366",
     "BIOL370","BIOL372","BIOL376","BIOL377","BIOL378","BIOL380","BIOL381","BIOL382",
-    "BIOL390","BIOL395","BIOL444","BIOL478","BIOL479"
+    "BIOL390","BIOL395","BIOL444","BIOL478","BIOL479",
+
+    "MATH114QR","MATH115","MATH115R","MATH125","MATH129","MATH130","MATH130R","MATH134","MATH135","MATH135R",
+    "MATH140","MATH140R","MATH141","MATH141R","MATH145","MATH145R","MATH211L","MATH240","MATH242","MATH242R",
+    "MATH260","MATH265","MATH270","MATH291","MATH309","MATH314","MATH345","MATH350","MATH358","MATH360",
+    "MATH361","MATH370","MATH380","MATH390","MATH425","MATH426","MATH440","MATH447","MATH448","MATH450",
+    "MATH455","MATH458","MATH460","MATH470","MATH478","MATH480","MATH490",
+
+    "ENGL101","ENGL102","ENGL110","ENGL111E","ENGL124","ENGL125G","ENGL126","ENGL126G","ENGL127G",
+    "ENGL130","ENGL135","ENGL179GL","ENGL181G","ENGL182G","ENGL183G","ENGL185G","ENGL186G","ENGL187G",
+    "ENGL188G","ENGL189G","ENGL200","ENGL201","ENGL202","ENGL203","ENGL204","ENGL209","ENGL210",
+    "ENGL211","ENGL212","ENGL216","ENGL221L","ENGL223L","ENGL224L","ENGL225","ENGL236","ENGL242",
+    "ENGL248","ENGL258L","ENGL262G","ENGL268","ENGL270GL","ENGL272G","ENGL273G","ENGL274G","ENGL284",
+    "ENGL285","ENGL292L","ENGL293L","ENGL300","ENGL301","ENGL302","ENGL303","ENGL304","ENGL306",
+    "ENGL307","ENGL308","ENGL309","ENGL312","ENGL316L","ENGL317L","ENGL320","ENGL322","ENGL324",
+    "ENGL326","ENGL327","ENGL328","ENGL331","ENGL332","ENGL333","ENGL334","ENGL335","ENGL337",
+    "ENGL340","ENGL341L","ENGL343","ENGL350L","ENGL351","ENGL352L","ENGL354","ENGL357","ENGL365",
+    "ENGL369","ENGL370","ENGL371","ENGL372L","ENGL374","ENGL376","ENGL378","ENGL379","ENGL380",
+    "ENGL382","ENGL383","ENGL396","ENGL397","ENGL401","ENGL402","ENGL403","ENGL406","ENGL408",
+    "ENGL410","ENGL411","ENGL412","ENGL415","ENGL418","ENGL437","ENGL438","ENGL440","ENGL442",
+    "ENGL444","ENGL448","ENGL450","ENGL451","ENGL452","ENGL454","ENGL455","ENGL456","ENGL457",
+    "ENGL458","ENGL459","ENGL465","ENGL466","ENGL470L","ENGL471L","ENGL475","ENGL477","ENGL489",
+    "ENGL496","ENGL497","ENGL498","ENGL499",
 ];
 
 const searchInput = document.getElementById("courseSearch");
@@ -189,6 +238,10 @@ document.getElementById("listingForm").addEventListener("submit", async (e) => {
         alert("Please select a course.");
         return;
     }
+    if (!ratingInput.value) {
+    ratingError.style.display = "block";
+    return;
+}
 
     const formData = new FormData();
     formData.append("course_code", hiddenInput.value);
