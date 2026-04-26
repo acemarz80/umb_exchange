@@ -47,7 +47,6 @@
             transform: scale(1.05);
         }
 
-        /* ✅ NEW: seller link styling */
         .seller-link {
             color: #003366;
             font-weight: bold;
@@ -128,14 +127,6 @@ function getImageUrl(image) {
 
 
 // =======================
-// 🔥 SELLER NAME HELPER
-// =======================
-function getSellerName(item) {
-    return item.username || item.seller_email;
-}
-
-
-// =======================
 // LOAD LISTINGS
 // =======================
 async function loadListings() {
@@ -173,24 +164,21 @@ async function loadListings() {
 
             <p>${item.description || ""}</p>
 
-            <!-- ✅ UPDATED SELLER SECTION -->
-           <p>
-    <strong>Seller:</strong>
-    <a class="seller-link"
-       href="user-profile.html?user_id=${item.seller_id}"
-       style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+            <div style="margin-top:10px; margin-bottom:10px;">
+                <small style="color:gray;">Seller</small><br>
 
-        <img 
-            src="${item.avatar ? 'avatars/' + item.avatar : 'avatars/default-avatar.png'}"
-            onerror="this.src='avatars/default-avatar.png'"
-            style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                <a class="seller-link"
+                   href="user-profile.html?user_id=${item.seller_id}"
+                   style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; margin-top:4px;">
 
-        <span>
-            ${item.username || item.seller_email}
-        </span>
+                    <img 
+                        src="${item.avatar || 'https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png'}"
+                        onerror="this.src='https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png'"
+                        style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
 
-    </a>
-</p>
+                    <span>${item.username || item.seller_email}</span>
+                </a>
+            </div>
 
             <div>
                 ${currentUser != item.seller_id ? `

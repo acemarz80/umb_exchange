@@ -1,4 +1,4 @@
-let selectedAvatar = "avatar1.png";
+let selectedAvatar = "https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png";
 
 function selectAvatar(img) {
     document.querySelectorAll(".avatar-option").forEach(a => a.classList.remove("selected"));
@@ -28,5 +28,7 @@ async function saveProfile() {
         localStorage.setItem("username", finalUsername);
         localStorage.setItem("avatar", selectedAvatar);
         window.location.href = "mainpage.html";
+    } else {
+        alert("Failed to save profile.");
     }
 }

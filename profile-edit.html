@@ -57,10 +57,25 @@ button {
     <h3>Choose Avatar</h3>
 
     <div class="avatar-grid">
-        <img src="avatars/avatar1.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar1.png">
-        <img src="avatars/avatar2.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar2.png">
-        <img src="avatars/avatar3.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar3.png">
-        <img src="avatars/avatar4.png" class="avatar" onclick="selectAvatar(this)" data-avatar="avatar4.png">
+        <img src="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png"
+            class="avatar"
+            onclick="selectAvatar(this)"
+            data-avatar="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png">
+
+        <img src="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170657/avatar2_y4hxki.png"
+            class="avatar"
+            onclick="selectAvatar(this)"
+            data-avatar="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170657/avatar2_y4hxki.png">
+
+        <img src="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170658/avatar3_xcqito.png"
+            class="avatar"
+            onclick="selectAvatar(this)"
+            data-avatar="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170658/avatar3_xcqito.png">
+
+        <img src="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170658/avatar4_ugru0m.png"
+            class="avatar"
+            onclick="selectAvatar(this)"
+            data-avatar="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170658/avatar4_ugru0m.png">
     </div>
 
     <button onclick="saveProfile()">Save Changes</button>
@@ -69,13 +84,11 @@ button {
 
 <script>
 
-let selectedAvatar = localStorage.getItem("avatar") || "avatar1.png";
+let selectedAvatar = localStorage.getItem("avatar") || "https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png";
 
-// preload current values
 document.getElementById("username").value =
     localStorage.getItem("username") || "";
 
-// mark current avatar selected
 window.onload = () => {
     document.querySelectorAll(".avatar").forEach(img => {
         if (img.dataset.avatar === selectedAvatar) {
@@ -84,14 +97,12 @@ window.onload = () => {
     });
 };
 
-// select avatar
 function selectAvatar(img) {
     document.querySelectorAll(".avatar").forEach(a => a.classList.remove("selected"));
     img.classList.add("selected");
     selectedAvatar = img.dataset.avatar;
 }
 
-// save changes
 async function saveProfile() {
     const username = document.getElementById("username").value.trim();
     const email = localStorage.getItem("userEmail");

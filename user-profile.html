@@ -37,7 +37,7 @@
 <div class="profile-box">
 
     <div class="header">
-        <img id="avatar" src="avatars/default-avatar.png">
+        <img id="avatar" src="https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png">
         <div>
             <h2 id="username">Loading...</h2>
             <p id="email"></p>
@@ -54,16 +54,11 @@
 const params = new URLSearchParams(window.location.search);
 const userId = params.get("user_id");
 
-// redirect safety
 if (!userId) {
     window.location.href = "mainpage.html";
 }
 
-// =======================
-// LOAD USER INFO
-// =======================
 async function loadUser() {
-
     const res = await fetch(`/getUserById?id=${userId}`);
     const data = await res.json();
 
@@ -74,18 +69,15 @@ async function loadUser() {
         data.email;
 
     document.getElementById("avatar").src =
-        data.avatar ? `avatars/${data.avatar}` : "avatars/default-avatar.png";
+        data.avatar || "https://res.cloudinary.com/dx7tpzg3r/image/upload/v1777170742/avatar1_yszcku.png";
 }
 
-// =======================
-// LOAD LISTINGS
-// =======================
 async function loadListings() {
-
     const res = await fetch(`/getListingsByUser?user_id=${userId}`);
     const data = await res.json();
 
     const container = document.getElementById("listings");
+    container.innerHTML = "";
 
     if (data.length === 0) {
         container.innerHTML = "<p>No listings.</p>";
