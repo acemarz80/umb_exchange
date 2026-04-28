@@ -515,13 +515,35 @@ app.get("/getConversations", async (req, res) => {
 // =======================
 // SOCKET.IO MESSAGING
 // =======================
+// =======================
+// SOCKET.IO MESSAGING
+// =======================
 io.on("connection", (socket) => {
     console.log("SOCKET CONNECTED:", socket.id);
 
-    // join chat room
+    // user joins personal room for inbox updates
+    socket.on("registerUser", (userId) => {
+        if (!userId) return;
+        socket.join(`user_${userId}`);
+        console.log(`USER ${userId} joined personal room`);
+    });
+
+    // user joins active conversation room
     socket.on("joinRoom", (room) => {
         if (!room) return;
         socket.join(room);
+        console.log(`Joined chat room ${room}`);
+    });
+
+    // typing indicator
+    socket.on("typing", ({ room, sender_id }) => {
+        if (!room) return;
+        socket.to(room).emit("userTyping", { sender_id });
+    });
+
+    socket.on("stopTyping", ({ room }) => {
+        if (!room) return;
+        socket.to(room).emit("userStoppedTyping");
     });
 
     // send message
@@ -554,9 +576,16 @@ io.on("connection", (socket) => {
                 ]
             );
 
+            const savedMessage = result.rows[0];
+
+            // emit to active open chat room
             if (room) {
-                io.to(room).emit("receiveMessage", result.rows[0]);
+                io.to(room).emit("receiveMessage", savedMessage);
             }
+
+            // emit inbox refresh to both users personal rooms
+            io.to(`user_${sender_id}`).emit("refreshInbox");
+            io.to(`user_${receiver_id}`).emit("refreshInbox");
 
         } catch (err) {
             console.error("SOCKET MESSAGE ERROR:", err);

@@ -7,6 +7,8 @@ if (!sender_id) {
     window.location.href = "login.html";
 }
 
+socket.emit("registerUser", sender_id);
+
 const urlParams = new URLSearchParams(window.location.search);
 
 let receiver_id = Number(urlParams.get("receiver_id")) || null;
@@ -15,6 +17,7 @@ let course_code = urlParams.get("course") || null;
 let book_title = urlParams.get("title") || null;
 
 let room = null;
+let typingTimeout = null;
 
 const conversationList = document.getElementById("conversation-list");
 const messagesBox = document.getElementById("messages-box");
@@ -46,13 +49,35 @@ function renderMessage(msg) {
     div.className = isMe ? "me" : "other";
 
     div.innerHTML = `
-        <strong>${isMe ? "You" : (msg.sender_username || msg.sender_email || "User")}:</strong>
+        <strong>${isMe ? "You" : "Student"}:</strong>
         ${msg.message}
         <small>${new Date(msg.timestamp).toLocaleString()}</small>
     `;
 
     messagesBox.appendChild(div);
     messagesBox.scrollTop = messagesBox.scrollHeight;
+}
+
+// =======================
+// TYPING INDICATOR
+// =======================
+function showTyping() {
+    let typing = document.getElementById("typing-indicator");
+
+    if (!typing) {
+        typing = document.createElement("div");
+        typing.id = "typing-indicator";
+        typing.className = "typing-indicator";
+        typing.innerText = "Typing...";
+        messagesBox.appendChild(typing);
+    }
+
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+}
+
+function hideTyping() {
+    const typing = document.getElementById("typing-indicator");
+    if (typing) typing.remove();
 }
 
 // =======================
@@ -84,18 +109,16 @@ async function loadMessages() {
 }
 
 // =======================
-// GET USER (FALLBACK)
+// GET USER
 // =======================
 async function getReceiverUser(id) {
     try {
         const res = await fetch(`/getUser/${id}`);
         const data = await res.json();
 
-        if (data.success && data.user) {
-            return data.user;
-        }
+        if (data.success && data.user) return data.user;
     } catch (err) {
-        console.error("GET USER ERROR:", err);
+        console.error(err);
     }
 
     return {
@@ -137,7 +160,6 @@ async function openConversation(convo) {
             ? `${course_code} • ${book_title}`
             : course_code || book_title || "General conversation";
 
-    // ✅ SHOW CHAT UI
     document.getElementById("empty-state").style.display = "none";
     document.getElementById("messages-box").style.display = "block";
     document.getElementById("input-container").style.display = "flex";
@@ -182,16 +204,9 @@ function renderConversation(convo) {
         });
 
         div.classList.add("active");
-
-        if (!convo || !convo.other_user_id) {
-            console.error("Invalid conversation object:", convo);
-            return;
-        }
-
         await openConversation(convo);
     });
 
-    // ✅ FIX: actually add to DOM
     conversationList.appendChild(div);
     return div;
 }
@@ -204,7 +219,6 @@ async function loadConversations() {
     const conversations = await res.json();
 
     conversationList.innerHTML = "";
-
     conversations.forEach(renderConversation);
 
     if (receiver_id) {
@@ -217,27 +231,7 @@ async function loadConversations() {
             const items = document.querySelectorAll(".conversation-item");
             const index = conversations.indexOf(existing);
             items[index]?.classList.add("active");
-            openConversation(existing);
-        } else {
-            const user = await getReceiverUser(receiver_id);
-
-            const newConvo = {
-                other_user_id: receiver_id,
-                other_user_username: user.username,
-                other_user_email: user.email,
-                other_user_avatar: user.avatar,
-                listing_id,
-                course_code,
-                book_title,
-                last_message: "Start the conversation"
-            };
-
-            const div = renderConversation(newConvo);
-            div.classList.add("active");
-            openConversation(newConvo);
         }
-    } else if (conversations.length === 0) {
-        conversationList.innerHTML = "<p>No conversations yet.</p>";
     }
 }
 
@@ -270,6 +264,7 @@ function sendMessage() {
     });
 
     input.value = "";
+    socket.emit("stopTyping", { room });
 }
 
 // =======================
@@ -287,19 +282,43 @@ socket.on("receiveMessage", (msg) => {
     );
 
     if (incomingRoom === room) {
+        hideTyping();
+
         const empty = document.querySelector(".empty-chat");
         if (empty) messagesBox.innerHTML = "";
 
         renderMessage(msg);
     }
+});
 
+socket.on("refreshInbox", () => {
     loadConversations();
 });
 
+socket.on("userTyping", () => {
+    showTyping();
+});
+
+socket.on("userStoppedTyping", () => {
+    hideTyping();
+});
+
 // =======================
-// ENTER KEY
+// INPUT EVENTS
 // =======================
 if (input) {
+    input.addEventListener("input", () => {
+        if (!room) return;
+
+        socket.emit("typing", { room, sender_id });
+
+        clearTimeout(typingTimeout);
+
+        typingTimeout = setTimeout(() => {
+            socket.emit("stopTyping", { room });
+        }, 1200);
+    });
+
     input.addEventListener("keypress", (e) => {
         if (e.key === "Enter") {
             sendMessage();

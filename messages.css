@@ -332,3 +332,10 @@ body {
     text-align: center;
     max-width: 260px;
 }
+
+.typing-indicator{
+    font-style: italic;
+    color: gray;
+    padding: 8px;
+    font-size: 13px;
+}
