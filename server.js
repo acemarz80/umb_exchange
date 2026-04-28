@@ -1,17 +1,22 @@
 require("dotenv").config();
+
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const multer = require("multer");
-const path = require("path");
 const { Pool } = require("pg");
-
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
+const { v2: cloudinary } = require("cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    cors: {
+        origin: "*"
+    }
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -31,11 +36,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =======================
-// MULTER
+// CLOUDINARY / MULTER
 // =======================
-const { v2: cloudinary } = require("cloudinary");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -43,14 +45,27 @@ cloudinary.config({
 });
 
 const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
+    cloudinary,
     params: {
         folder: "umb-exchange",
-        allowed_formats: ["jpg", "png", "jpeg"]
+        allowed_formats: ["jpg", "jpeg", "png", "webp"]
     }
 });
 
 const upload = multer({ storage });
+
+// =======================
+// HEALTH CHECK
+// =======================
+app.get("/health", async (req, res) => {
+    try {
+        await db.query("SELECT 1");
+        res.json({ success: true, message: "Server and database connected" });
+    } catch (err) {
+        console.error("HEALTH CHECK ERROR:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // =======================
 // ENSURE USER EXISTS
@@ -63,7 +78,7 @@ async function ensureUser(email) {
 }
 
 // =======================
-// CREATE USER
+// CREATE USER IF NOT EXISTS
 // =======================
 app.post("/createUserIfNotExists", async (req, res) => {
     const { email } = req.body;
@@ -80,10 +95,9 @@ app.post("/createUserIfNotExists", async (req, res) => {
             success: true,
             user_id: result.rows[0].id
         });
-
     } catch (err) {
-        console.error(err);
-        res.json({ success: false });
+        console.error("CREATE USER ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
 });
 
@@ -126,15 +140,14 @@ app.post("/generate-2fa", async (req, res) => {
         const qr = await QRCode.toDataURL(otpauth);
 
         res.json({ success: true, qr });
-
     } catch (err) {
-        console.error("2FA ERROR:", err);
-        res.json({ success: false });
+        console.error("2FA GENERATE ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
 });
 
 // =======================
-// VERIFY 2FA
+// VERIFY 2FA LOGIN
 // =======================
 app.post("/verify-2fa", async (req, res) => {
     const { email, token } = req.body;
@@ -150,6 +163,10 @@ app.post("/verify-2fa", async (req, res) => {
         }
 
         const user = result.rows[0];
+
+        if (!user.auth_secret) {
+            return res.json({ success: false, message: "No 2FA setup" });
+        }
 
         const cleanToken = token ? token.replace(/\s/g, "") : "";
 
@@ -168,16 +185,14 @@ app.post("/verify-2fa", async (req, res) => {
             success: true,
             email: user.email,
             user_id: user.id,
-            username: user.username,
-            avatar: user.avatar
+            username: user.username || user.email,
+            avatar: user.avatar || "default-avatar.png"
         });
-
     } catch (err) {
-        console.error(err);
-        return res.json({ success: false });
+        console.error("VERIFY 2FA ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
 });
-
 // =======================
 // SAVE PROFILE SETUP
 // =======================
@@ -187,19 +202,52 @@ app.post("/saveProfileSetup", async (req, res) => {
     try {
         await db.query(
             "UPDATE users SET username = $1, avatar = $2 WHERE email = $3",
-            [username, avatar, email]
+            [
+                username || email,
+                avatar || "default-avatar.png",
+                email
+            ]
         );
 
         res.json({ success: true });
-
     } catch (err) {
-        console.error(err);
-        res.json({ success: false });
+        console.error("SAVE PROFILE ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
 });
 
 // =======================
-// 🔥 NEW: GET USER BY ID (PUBLIC PROFILE)
+// GET USER FOR MESSAGING
+// =======================
+app.get("/getUser/:id", async (req, res) => {
+    try {
+        const result = await db.query(
+            "SELECT id, email, username, avatar FROM users WHERE id = $1",
+            [req.params.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ success: false });
+        }
+
+        const user = result.rows[0];
+
+        res.json({
+            success: true,
+            user: {
+                ...user,
+                username: user.username || user.email,
+                avatar: user.avatar || "default-avatar.png"
+            }
+        });
+    } catch (err) {
+        console.error("GET USER ERROR:", err);
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// =======================
+// GET USER BY ID PUBLIC PROFILE
 // =======================
 app.get("/getUserById", async (req, res) => {
     const { id } = req.query;
@@ -210,16 +258,25 @@ app.get("/getUserById", async (req, res) => {
             [id]
         );
 
-        res.json(result.rows[0] || {});
+        if (result.rows.length === 0) {
+            return res.json({});
+        }
 
+        const user = result.rows[0];
+
+        res.json({
+            ...user,
+            username: user.username || user.email,
+            avatar: user.avatar || "default-avatar.png"
+        });
     } catch (err) {
-        console.error(err);
+        console.error("GET USER BY ID ERROR:", err);
         res.json({});
     }
 });
 
 // =======================
-// 🔥 NEW: GET LISTINGS BY USER (PUBLIC PROFILE)
+// GET LISTINGS BY USER PUBLIC PROFILE
 // =======================
 app.get("/getListingsByUser", async (req, res) => {
     const { user_id } = req.query;
@@ -231,9 +288,8 @@ app.get("/getListingsByUser", async (req, res) => {
         );
 
         res.json(result.rows);
-
     } catch (err) {
-        console.error(err);
+        console.error("GET LISTINGS BY USER ERROR:", err);
         res.json([]);
     }
 });
@@ -243,9 +299,15 @@ app.get("/getListingsByUser", async (req, res) => {
 // =======================
 app.post("/createListing", upload.single("image"), async (req, res) => {
     const {
-        course_code, title, edition, price,
-        book_condition, rating, description,
-        seller_email, seller_id
+        course_code,
+        title,
+        edition,
+        price,
+        book_condition,
+        rating,
+        description,
+        seller_email,
+        seller_id
     } = req.body;
 
     const image = req.file ? req.file.path : null;
@@ -256,18 +318,25 @@ app.post("/createListing", upload.single("image"), async (req, res) => {
             (course_code, title, edition, price, book_condition, rating, description, seller_email, seller_id, image)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
             [
-                course_code, title, edition || null, price,
-                book_condition, rating || null, description || null,
-                seller_email, seller_id, image
+                course_code,
+                title,
+                edition || null,
+                price,
+                book_condition,
+                rating || null,
+                description || null,
+                seller_email,
+                seller_id,
+                image
             ]
         );
 
         io.emit("newListing");
-        res.json({ success: true });
 
+        res.json({ success: true });
     } catch (err) {
-        console.error(err);
-        res.json({ success: false });
+        console.error("CREATE LISTING ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
 });
 
@@ -284,10 +353,10 @@ app.get("/getListings", async (req, res) => {
                 users.username,
                 users.avatar
             FROM listings
-            JOIN users ON listings.seller_id = users.id
+            LEFT JOIN users ON listings.seller_id = users.id
         `;
 
-        let params = [];
+        const params = [];
 
         if (course) {
             sql += " WHERE listings.course_code = $1";
@@ -298,14 +367,18 @@ app.get("/getListings", async (req, res) => {
 
         const result = await db.query(sql, params);
 
-        res.json(result.rows);
+        const cleaned = result.rows.map(item => ({
+            ...item,
+            username: item.username || item.seller_email,
+            avatar: item.avatar || "default-avatar.png"
+        }));
 
+        res.json(cleaned);
     } catch (err) {
-        console.error("❌ GET LISTINGS ERROR:", err);
+        console.error("GET LISTINGS ERROR:", err);
         res.json([]);
     }
 });
-
 // =======================
 // MY LISTINGS
 // =======================
@@ -319,9 +392,8 @@ app.get("/myListings", async (req, res) => {
         );
 
         res.json(result.rows);
-
     } catch (err) {
-        console.error(err);
+        console.error("MY LISTINGS ERROR:", err);
         res.json([]);
     }
 });
@@ -345,11 +417,155 @@ app.post("/deleteListing", async (req, res) => {
         io.emit("newListing");
 
         res.json({ success: true });
-
     } catch (err) {
-        console.error(err);
-        res.json({ success: false });
+        console.error("DELETE LISTING ERROR:", err);
+        res.json({ success: false, error: err.message });
     }
+});
+
+// =======================
+// GET MESSAGES (CHAT HISTORY)
+// =======================
+app.get("/getMessages", async (req, res) => {
+    const { sender_id, receiver_id, listing_id } = req.query;
+
+    try {
+        let sql = `
+            SELECT *
+            FROM messages
+            WHERE (
+                (sender_id = $1 AND receiver_id = $2)
+                OR
+                (sender_id = $2 AND receiver_id = $1)
+            )
+        `;
+
+        const params = [sender_id, receiver_id];
+
+        if (listing_id) {
+            sql += " AND listing_id = $3";
+            params.push(listing_id);
+        }
+
+        sql += " ORDER BY timestamp ASC";
+
+        const result = await db.query(sql, params);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error("GET MESSAGES ERROR:", err);
+        res.json([]);
+    }
+});
+
+// =======================
+// GET CONVERSATIONS (INBOX)
+// =======================
+app.get("/getConversations", async (req, res) => {
+    const userId = req.query.user_id;
+
+    try {
+        const result = await db.query(
+            `
+            WITH user_messages AS (
+                SELECT
+                    m.*,
+                    CASE
+                        WHEN m.sender_id = $1 THEN m.receiver_id
+                        ELSE m.sender_id
+                    END AS other_user_id
+                FROM messages m
+                WHERE m.sender_id = $1 OR m.receiver_id = $1
+            ),
+            latest AS (
+                SELECT DISTINCT ON (other_user_id, COALESCE(listing_id, 0))
+                    other_user_id,
+                    listing_id,
+                    course_code,
+                    book_title,
+                    message AS last_message,
+                    timestamp AS last_timestamp
+                FROM user_messages
+                ORDER BY other_user_id, COALESCE(listing_id, 0), timestamp DESC
+            )
+            SELECT
+                latest.*,
+                users.email AS other_user_email,
+                users.username AS other_user_username,
+                users.avatar AS other_user_avatar
+            FROM latest
+            JOIN users ON users.id = latest.other_user_id
+            ORDER BY latest.last_timestamp DESC
+            `,
+            [userId]
+        );
+
+        const cleaned = result.rows.map(c => ({
+            ...c,
+            other_user_username: c.other_user_username || c.other_user_email,
+            other_user_avatar: c.other_user_avatar || "default-avatar.png"
+        }));
+
+        res.json(cleaned);
+    } catch (err) {
+        console.error("GET CONVERSATIONS ERROR:", err);
+        res.json([]);
+    }
+});
+// =======================
+// SOCKET.IO MESSAGING
+// =======================
+io.on("connection", (socket) => {
+    console.log("SOCKET CONNECTED:", socket.id);
+
+    // join chat room
+    socket.on("joinRoom", (room) => {
+        if (!room) return;
+        socket.join(room);
+    });
+
+    // send message
+    socket.on("sendMessage", async (data) => {
+        const {
+            sender_id,
+            receiver_id,
+            message,
+            room,
+            listing_id,
+            course_code,
+            book_title
+        } = data;
+
+        try {
+            if (!sender_id || !receiver_id || !message) return;
+
+            const result = await db.query(
+                `INSERT INTO messages
+                (sender_id, receiver_id, message, listing_id, course_code, book_title)
+                VALUES ($1,$2,$3,$4,$5,$6)
+                RETURNING *`,
+                [
+                    sender_id,
+                    receiver_id,
+                    message,
+                    listing_id || null,
+                    course_code || null,
+                    book_title || null
+                ]
+            );
+
+            if (room) {
+                io.to(room).emit("receiveMessage", result.rows[0]);
+            }
+
+        } catch (err) {
+            console.error("SOCKET MESSAGE ERROR:", err);
+        }
+    });
+
+    socket.on("disconnect", () => {
+        console.log("SOCKET DISCONNECTED:", socket.id);
+    });
 });
 
 // =======================

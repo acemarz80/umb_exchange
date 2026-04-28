@@ -22,6 +22,9 @@ const input = document.getElementById("message-input");
 const chatLabel = document.getElementById("chat-label");
 const chatContext = document.getElementById("chat-context");
 
+// =======================
+// ROOM
+// =======================
 function createRoom(userA = sender_id, userB = receiver_id, listingId = listing_id) {
     if (!userA || !userB) return null;
 
@@ -33,6 +36,9 @@ function createRoom(userA = sender_id, userB = receiver_id, listingId = listing_
     return listingId ? `${base}_listing_${listingId}` : `${base}_general`;
 }
 
+// =======================
+// MESSAGE RENDER
+// =======================
 function renderMessage(msg) {
     const div = document.createElement("div");
     const isMe = Number(msg.sender_id) === sender_id;
@@ -40,7 +46,8 @@ function renderMessage(msg) {
     div.className = isMe ? "me" : "other";
 
     div.innerHTML = `
-        <strong>${isMe ? "You" : "Them"}:</strong> ${msg.message}
+        <strong>${isMe ? "You" : (msg.sender_username || msg.sender_email || "User")}:</strong>
+        ${msg.message}
         <small>${new Date(msg.timestamp).toLocaleString()}</small>
     `;
 
@@ -48,6 +55,9 @@ function renderMessage(msg) {
     messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
+// =======================
+// LOAD MESSAGES
+// =======================
 async function loadMessages() {
     if (!receiver_id) return;
 
@@ -73,21 +83,32 @@ async function loadMessages() {
     }
 }
 
-async function getReceiverEmail(id) {
+// =======================
+// GET USER (FALLBACK)
+// =======================
+async function getReceiverUser(id) {
     try {
         const res = await fetch(`/getUser/${id}`);
         const data = await res.json();
 
-        if (data.success && data.user.email) {
-            return data.user.email;
+        if (data.success && data.user) {
+            return data.user;
         }
     } catch (err) {
         console.error("GET USER ERROR:", err);
     }
 
-    return `User ${id}`;
+    return {
+        id,
+        username: `User ${id}`,
+        email: "",
+        avatar: "default-avatar.png"
+    };
 }
 
+// =======================
+// OPEN CONVERSATION
+// =======================
 async function openConversation(convo) {
     receiver_id = Number(convo.other_user_id);
     listing_id = convo.listing_id ? Number(convo.listing_id) : null;
@@ -95,46 +116,89 @@ async function openConversation(convo) {
     book_title = convo.book_title || null;
 
     room = createRoom();
-
     socket.emit("joinRoom", room);
 
-    chatLabel.textContent = `Chat with ${convo.other_user_email || "Student"}`;
+    const displayName =
+        convo.other_user_username ||
+        convo.other_user_email ||
+        "Student";
+
+    const avatar =
+        convo.other_user_avatar ||
+        "default-avatar.png";
+
+    chatLabel.innerHTML = `
+        <img src="${avatar}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+        ${displayName}
+    `;
+
     chatContext.textContent =
         course_code && book_title
             ? `${course_code} • ${book_title}`
             : course_code || book_title || "General conversation";
 
+    // ✅ SHOW CHAT UI
+    document.getElementById("empty-state").style.display = "none";
+    document.getElementById("messages-box").style.display = "block";
+    document.getElementById("input-container").style.display = "flex";
+
     await loadMessages();
 }
 
+// =======================
+// CONVERSATION RENDER
+// =======================
 function renderConversation(convo) {
     const div = document.createElement("div");
     div.className = "conversation-item";
 
+    const name =
+        convo.other_user_username ||
+        convo.other_user_email ||
+        "Student";
+
+    const avatar =
+        convo.other_user_avatar ||
+        "default-avatar.png";
+
     div.innerHTML = `
-        <strong>${convo.other_user_email || "Student"}</strong>
-        <div class="conversation-context">
-            ${convo.course_code || ""} ${convo.book_title ? "• " + convo.book_title : ""}
-        </div>
-        <div class="conversation-preview">
-            ${convo.last_message || "Start the conversation"}
+        <div style="display:flex;align-items:center;gap:10px;">
+            <img src="${avatar}" style="width:38px;height:38px;border-radius:50%;">
+            <div>
+                <strong>${name}</strong>
+                <div class="conversation-context">
+                    ${convo.course_code || ""} ${convo.book_title ? "• " + convo.book_title : ""}
+                </div>
+                <div class="conversation-preview">
+                    ${convo.last_message || "Start the conversation"}
+                </div>
+            </div>
         </div>
     `;
 
-    div.addEventListener("click", () => {
+    div.addEventListener("click", async () => {
         document.querySelectorAll(".conversation-item").forEach(item => {
             item.classList.remove("active");
         });
 
         div.classList.add("active");
-        openConversation(convo);
+
+        if (!convo || !convo.other_user_id) {
+            console.error("Invalid conversation object:", convo);
+            return;
+        }
+
+        await openConversation(convo);
     });
 
+    // ✅ FIX: actually add to DOM
     conversationList.appendChild(div);
-
     return div;
 }
 
+// =======================
+// LOAD CONVERSATIONS
+// =======================
 async function loadConversations() {
     const res = await fetch(`/getConversations?user_id=${sender_id}`);
     const conversations = await res.json();
@@ -143,7 +207,6 @@ async function loadConversations() {
 
     conversations.forEach(renderConversation);
 
-    // If user came from Contact Student button
     if (receiver_id) {
         const existing = conversations.find(convo =>
             Number(convo.other_user_id) === receiver_id &&
@@ -156,11 +219,13 @@ async function loadConversations() {
             items[index]?.classList.add("active");
             openConversation(existing);
         } else {
-            const receiverEmail = await getReceiverEmail(receiver_id);
+            const user = await getReceiverUser(receiver_id);
 
             const newConvo = {
                 other_user_id: receiver_id,
-                other_user_email: receiverEmail,
+                other_user_username: user.username,
+                other_user_email: user.email,
+                other_user_avatar: user.avatar,
                 listing_id,
                 course_code,
                 book_title,
@@ -176,6 +241,9 @@ async function loadConversations() {
     }
 }
 
+// =======================
+// SEND MESSAGE
+// =======================
 function sendMessage() {
     const message = input.value.trim();
 
@@ -204,6 +272,9 @@ function sendMessage() {
     input.value = "";
 }
 
+// =======================
+// SOCKET EVENTS
+// =======================
 socket.on("connect", () => {
     loadConversations();
 });
@@ -225,8 +296,13 @@ socket.on("receiveMessage", (msg) => {
     loadConversations();
 });
 
-input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-        sendMessage();
-    }
-});
+// =======================
+// ENTER KEY
+// =======================
+if (input) {
+    input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+            sendMessage();
+        }
+    });
+}

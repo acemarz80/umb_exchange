@@ -245,3 +245,90 @@ body {
     font-size: 14px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
+
+/* =======================
+   EMPTY STATE UPGRADE
+======================= */
+
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+.empty-state h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #003366;
+}
+
+.empty-state p {
+    margin-top: 6px;
+    font-size: 14px;
+    max-width: 300px;
+    line-height: 1.4;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =======================
+   EMPTY CHAT HEADER STATE
+======================= */
+
+.chat-empty-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* optional subtle icon using CSS */
+.chat-empty-title::before {
+    content: "💬";
+    font-size: 18px;
+    opacity: 0.7;
+}
+
+/* make empty context cleaner */
+#chat-context {
+    color: #9ca3af;
+}
+
+/* nicer default empty chat look */
+.empty-chat {
+    align-self: center;
+    margin-top: 120px;
+    color: #6b7280;
+    background: #ffffff;
+    padding: 16px 22px;
+    border-radius: 16px;
+    font-size: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    border: 1px solid #eef0f3;
+    text-align: center;
+    max-width: 260px;
+}

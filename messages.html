@@ -21,6 +21,8 @@
 </nav>
 
 <main class="messages-page">
+
+    <!-- LEFT SIDEBAR -->
     <aside class="conversation-sidebar">
         <h3>Your Conversations</h3>
         <div id="conversation-list">
@@ -28,21 +30,38 @@
         </div>
     </aside>
 
+    <!-- RIGHT CHAT AREA -->
     <section class="chat-section">
+
+        <!-- HEADER -->
         <div class="chat-header">
-            <p id="chat-label">Select a conversation</p>
-            <p id="chat-context"></p>
+            <p id="chat-label" class="chat-empty-title">Select a conversation</p>
+            <p id="chat-context">Choose a student to start messaging</p>
         </div>
 
+        <!-- CHAT BODY -->
         <div class="chat-container">
-            <div id="messages-box"></div>
 
-            <div class="input-container">
+            <!-- EMPTY STATE -->
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">💬</div>
+                <h2>No conversation selected</h2>
+                <p>Select a conversation from the left to view messages and start chatting.</p>
+            </div>
+
+            <!-- MESSAGES -->
+            <div id="messages-box" style="display:none;"></div>
+
+            <!-- INPUT -->
+            <div class="input-container" id="input-container" style="display:none;">
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-button" onclick="sendMessage()">Send</button>
             </div>
+
         </div>
+
     </section>
+
 </main>
 
 <script src="/socket.io/socket.io.js"></script>
