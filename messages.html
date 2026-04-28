@@ -7,27 +7,43 @@
 </head>
 <body>
 
-<h2>Messages</h2>
+<nav class="messages-nav">
+    <div class="messages-logo">
+        <img src="umb-logo.png" alt="UMB Exchange Logo">
+    </div>
 
-<div class="messages-layout">
+    <div class="messages-nav-links">
+        <a href="./mainpage.html">Home</a>
+        <a href="./browse.html">Browse</a>
+        <a href="./sell.html">Sell a Book</a>
+        <a href="./messages.html" class="active-link">Messages</a>
+    </div>
+</nav>
+
+<main class="messages-page">
     <aside class="conversation-sidebar">
         <h3>Your Conversations</h3>
-        <div id="conversation-list"></div>
+        <div id="conversation-list">
+            <p>No conversations yet.</p>
+        </div>
     </aside>
 
     <section class="chat-section">
-        <p id="chat-label">Select a conversation</p>
-        <p id="chat-context"></p>
+        <div class="chat-header">
+            <p id="chat-label">Select a conversation</p>
+            <p id="chat-context"></p>
+        </div>
 
         <div class="chat-container">
             <div id="messages-box"></div>
+
             <div class="input-container">
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-button" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </section>
-</div>
+</main>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="messages.js"></script>
