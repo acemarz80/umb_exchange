@@ -48,6 +48,7 @@
             <div class="sort-options">
                 <!-- Major Dropdown -->
                 <select id="majorSelect">
+                    <option value="all">All Courses</option>
                     <option value="af">Accounting and Finance</option>
                     <option value="biochm">Biochemistry</option>
                     <option value="biol">Biology</option>
@@ -2612,222 +2613,234 @@
     </section>
 </main>
 
-<!-- JavaScript Filtering -->
-<script>
-const checkboxes = document.querySelectorAll('.filter-group input');
-const courses = document.querySelectorAll('.course-card');
-const activeFiltersContainer = document.querySelector('.active-filters');
-const majorSelect = document.getElementById('majorSelect');
-const currentMajorText = document.getElementById('currentMajor');
-
-// Event Listeners
-checkboxes.forEach(box => {
-    box.addEventListener('change', filterCourses);
-});
-
-majorSelect.addEventListener('change', filterCourses);
-
-// Main Filter Function
-function filterCourses() {
-    const selectedLevels = Array.from(checkboxes)
-        .filter(box => box.checked)
-        .map(box => box.value);
-
-    const selectedMajor = majorSelect.value;
-
-    // Update breadcrumb
-    currentMajorText.textContent =
-        selectedMajor === "all"
-            ? "All Majors"
-            : majorSelect.options[majorSelect.selectedIndex].text;
-
-    courses.forEach(course => {
-        const level = course.getAttribute('data-level');
-        const major = course.getAttribute('data-major');
-
-        const levelMatch =
-            selectedLevels.length === 0 || selectedLevels.includes(level);
-
-        const majorMatch =
-            selectedMajor === "all" || selectedMajor === major;
-
-        if (levelMatch && majorMatch) {
-            course.style.display = "block";
-        } else {
-            course.style.display = "none";
-        }
-    });
-
-    updateActiveFilters(selectedLevels, selectedMajor);
-}
-
-// Active Filter Tags
-function updateActiveFilters(levels, major) {
-    activeFiltersContainer.innerHTML = "";
-
-    // Level Tags
-    levels.forEach(level => {
-        const tag = document.createElement("span");
-        tag.classList.add("filter-tag");
-        tag.textContent = level + " Level ✕";
-
-        tag.addEventListener("click", () => {
-            checkboxes.forEach(box => {
-                if (box.value === level) {
-                    box.checked = false;
-                }
-            });
-            filterCourses();
-        });
-
-        activeFiltersContainer.appendChild(tag);
-    });
-
-    // Major Tag
-    if (major !== "all") {
-        const tag = document.createElement("span");
-        tag.classList.add("filter-tag");
-        tag.textContent =
-            majorSelect.options[majorSelect.selectedIndex].text + " ✕";
-
-        tag.addEventListener("click", () => {
-            majorSelect.value = "all";
-            filterCourses();
-        });
-
-        activeFiltersContainer.appendChild(tag);
-    }
-}
-</script>
-
-<script>
-
-function filterFromSearch() {
-
-    const params = new URLSearchParams(window.location.search);
-    const courseSearch = params.get("course");
-
-    if(!courseSearch) return;
-
-    const courses = document.querySelectorAll(".course-card");
-
-    courses.forEach(course => {
-
-        const courseTitle = course.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
-
-        if(courseTitle.includes(courseSearch.toUpperCase())){
-            course.style.display = "block";
-        } else {
-            course.style.display = "none";
-        }
-
-    });
-
-}
-
-// run when page loads
-filterFromSearch();
-
-</script>
 
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-    const socket = io();
+    const socket = window.socket || io(); // safe fallback
+
+    if (!socket) {
+        console.error("Socket failed to initialize");
+        return;
+    }
+
+    // -------------------------
+    // ELEMENTS
+    // -------------------------
+    const checkboxes = document.querySelectorAll('.filter-group input');
+    const courses = document.querySelectorAll('.course-card');
+    const activeFiltersContainer = document.querySelector('.active-filters');
+    const majorSelect = document.getElementById('majorSelect');
+    const currentMajorText = document.getElementById('currentMajor');
     const sortSelect = document.getElementById("sortSelect");
 
+    let searchTerm = "";
     let courseData = {};
 
-    async function updateListingCounts() {
-        const res = await fetch("/getListings");
-        const listings = await res.json();
+    // -------------------------
+    // URL PARAM
+    // -------------------------
+    const params = new URLSearchParams(window.location.search);
+    searchTerm = params.get("course") || "";
 
-        courseData = {};
+    // -------------------------
+    // NORMALIZE
+    // -------------------------
+    const normalize = (str) =>
+        (str || "")
+            .replace(/[\s-]/g, "")
+            .toUpperCase();
 
-        listings.forEach(item => {
-            if (!courseData[item.course_code]) {
-                courseData[item.course_code] = {
-                    count: 0,
-                    latest: new Date(item.created_at).getTime()
-                };
-            }
+    // -------------------------
+    // FILTER
+    // -------------------------
+    function filterCourses() {
 
-            courseData[item.course_code].count++;
+        const selectedLevels = Array.from(checkboxes)
+            .filter(box => box.checked)
+            .map(box => box.value);
 
-            const time = new Date(item.created_at).getTime();
-            if (time > courseData[item.course_code].latest) {
-                courseData[item.course_code].latest = time;
-            }
+        const selectedMajor = majorSelect.value;
+
+        currentMajorText.textContent =
+            selectedMajor === "all"
+                ? "All Majors"
+                : majorSelect.options[majorSelect.selectedIndex].text;
+
+        courses.forEach(course => {
+
+            const level = course.getAttribute('data-level');
+            const major = course.getAttribute('data-major');
+            const title = course.querySelector("h4")?.textContent || "";
+
+            const levelMatch =
+                selectedLevels.length === 0 || selectedLevels.includes(level);
+
+            const majorMatch =
+                selectedMajor === "all" || selectedMajor === major;
+
+            const searchMatch =
+                !searchTerm ||
+                normalize(title).includes(normalize(searchTerm));
+
+            course.style.display =
+                (levelMatch && majorMatch && searchMatch) ? "" : "none";
         });
 
-        updateUI();
-        sortCourses();
+        updateActiveFilters(selectedLevels, selectedMajor);
     }
 
-    function updateUI() {
-        document.querySelectorAll(".course-card").forEach(card => {
-            const title = card.querySelector("h4").textContent.replace(/\s/g, "");
-            const courseCode = title.toUpperCase();
+    // -------------------------
+    // FILTER TAGS
+    // -------------------------
+    function updateActiveFilters(levels, major) {
 
-            const count = courseData[courseCode]?.count || 0;
+        activeFiltersContainer.innerHTML = "";
 
-            const meta = card.querySelector(".course-meta");
+        levels.forEach(level => {
+            const tag = document.createElement("span");
+            tag.classList.add("filter-tag");
+            tag.textContent = level + " Level ✕";
 
-            meta.textContent = count === 1
-                ? "1 Listing"
-                : count + " Listings";
+            tag.addEventListener("click", () => {
+                checkboxes.forEach(box => {
+                    if (box.value === level) box.checked = false;
+                });
+                filterCourses();
+            });
+
+            activeFiltersContainer.appendChild(tag);
         });
+
+        if (major !== "all") {
+            const tag = document.createElement("span");
+            tag.classList.add("filter-tag");
+            tag.textContent =
+                majorSelect.options[majorSelect.selectedIndex].text + " ✕";
+
+            tag.addEventListener("click", () => {
+                majorSelect.value = "all";
+                filterCourses();
+            });
+
+            activeFiltersContainer.appendChild(tag);
+        }
     }
 
+    // -------------------------
+    // SORT
+    // -------------------------
     function sortCourses() {
-        const grid = document.querySelector(".course-grid");
-        const cards = Array.from(document.querySelectorAll(".course-card"));
-        const sortType = sortSelect.value;
 
-        if (sortType === "default") return;
+        const grid = document.querySelector(".course-grid");
+        if (!grid) return;
+
+        const cards = Array.from(document.querySelectorAll(".course-card"));
+        const sortType = sortSelect?.value;
+
+        if (!sortType || sortType === "default") return;
 
         if (sortType === "mostListings") {
             cards.sort((a, b) => {
-                const aCode = a.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
-                const bCode = b.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
 
-                const aCount = courseData[aCode]?.count || 0;
-                const bCount = courseData[bCode]?.count || 0;
+                const aCode = normalize(a.querySelector("h4")?.textContent);
+                const bCode = normalize(b.querySelector("h4")?.textContent);
 
-                return bCount - aCount;
+                return (courseData[bCode]?.count || 0) -
+                       (courseData[aCode]?.count || 0);
             });
         }
 
         if (sortType === "mostRecent") {
             cards.sort((a, b) => {
-                const aCode = a.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
-                const bCode = b.querySelector("h4").textContent.replace(/\s/g, "").toUpperCase();
 
-                const aTime = courseData[aCode]?.latest || 0;
-                const bTime = courseData[bCode]?.latest || 0;
+                const aCode = normalize(a.querySelector("h4")?.textContent);
+                const bCode = normalize(b.querySelector("h4")?.textContent);
 
-                return bTime - aTime;
+                return (courseData[bCode]?.latest || 0) -
+                       (courseData[aCode]?.latest || 0);
             });
         }
 
         cards.forEach(card => grid.appendChild(card));
     }
 
-    // ✅ ONLY ADD EVENT IF ELEMENT EXISTS
-    if (sortSelect) {
-        sortSelect.addEventListener("change", sortCourses);
+    // -------------------------
+    // LISTINGS
+    // -------------------------
+    async function updateListingCounts() {
+
+        try {
+            const res = await fetch("/getListings");
+            const listings = await res.json();
+
+            courseData = {};
+
+            listings.forEach(item => {
+
+                const code = normalize(item.course_code);
+
+                if (!courseData[code]) {
+                    courseData[code] = {
+                        count: 0,
+                        latest: new Date(item.created_at).getTime()
+                    };
+                }
+
+                courseData[code].count++;
+
+                const time = new Date(item.created_at).getTime();
+                if (time > courseData[code].latest) {
+                    courseData[code].latest = time;
+                }
+            });
+
+            updateUI();
+            sortCourses();
+
+        } catch (err) {
+            console.error("Failed to load listings:", err);
+        }
     }
 
-    updateListingCounts();
+    // -------------------------
+    // UI UPDATE
+    // -------------------------
+    function updateUI() {
 
+        document.querySelectorAll(".course-card").forEach(card => {
+
+            const code = normalize(card.querySelector("h4")?.textContent);
+            const count = courseData[code]?.count || 0;
+
+            const meta = card.querySelector(".course-meta");
+            if (!meta) return;
+
+            meta.textContent =
+                count === 1 ? "1 Listing" : `${count} Listings`;
+        });
+    }
+
+    // -------------------------
+    // EVENTS
+    // -------------------------
+    checkboxes.forEach(box => box.addEventListener('change', filterCourses));
+    majorSelect?.addEventListener('change', filterCourses);
+    sortSelect?.addEventListener('change', sortCourses);
+
+    // -------------------------
+    // SOCKET
+    // -------------------------
     socket.on("newListing", () => {
         updateListingCounts();
     });
 
+    // -------------------------
+    // INIT
+    // -------------------------
+    updateListingCounts();
+    filterCourses();
 });
 </script>
-
-</body>
-</html>

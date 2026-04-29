@@ -221,7 +221,11 @@ async function loadConversations() {
     conversationList.innerHTML = "";
     conversations.forEach(renderConversation);
 
+    // ===============================
+    // FIX: FORCE OPEN FROM LISTING LINK
+    // ===============================
     if (receiver_id) {
+
         const existing = conversations.find(convo =>
             Number(convo.other_user_id) === receiver_id &&
             Number(convo.listing_id || 0) === Number(listing_id || 0)
@@ -231,6 +235,23 @@ async function loadConversations() {
             const items = document.querySelectorAll(".conversation-item");
             const index = conversations.indexOf(existing);
             items[index]?.classList.add("active");
+
+            await openConversation(existing);
+        } 
+        else {
+            // 🚀 THIS IS THE FIX (force create UI even if no DB convo exists)
+            const tempConvo = {
+                other_user_id: receiver_id,
+                listing_id: listing_id,
+                course_code: course_code,
+                book_title: book_title,
+                other_user_username: `User ${receiver_id}`,
+                other_user_email: "",
+                other_user_avatar: "default-avatar.png",
+                last_message: ""
+            };
+
+            await openConversation(tempConvo);
         }
     }
 }
