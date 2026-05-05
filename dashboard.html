@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>UMB Exchange Dashboard</title>
+    <link rel="stylesheet" href="stylesheet.css">
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="mainpage.html" class="logo">
+        <img src="umb-logo.png" alt="UMB Exchange Logo">
+    </a>
+
+    <div class="nav-links">
+        <a href="./mainpage.html">Home</a>
+        <a href="./browse.html">Browse Books</a>
+        <a href="./sell.html" class="sell-btn">Sell a Book</a>
+        <a href="./messages.html">Messages</a>
+        <a href="./profile.html">My Profile</a>
+        <a href="./dashboard.html">Dashboard</a>
+    </div>
+</nav>
+
+<main class="dashboard-container">
+    <h1>UMB Exchange Dashboard</h1>
+    <p class="dashboard-subtitle">Live platform insights from the database.</p>
+
+    <section class="dashboard-grid">
+        <div class="dashboard-card">
+            <h3>Total Users</h3>
+            <p id="totalUsers">--</p>
+        </div>
+
+        <div class="dashboard-card">
+            <h3>Total Listings</h3>
+            <p id="totalListings">--</p>
+        </div>
+
+        <div class="dashboard-card">
+            <h3>Total Messages</h3>
+            <p id="totalMessages">--</p>
+        </div>
+
+        <div class="dashboard-card">
+            <h3>Active Listings</h3>
+            <p id="activeListings">--</p>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <h2>Top Courses by Listings</h2>
+        <div id="topCourses"></div>
+    </section>
+
+    <section class="dashboard-section">
+        <h2>Recent Listings</h2>
+        <div id="recentListings"></div>
+    </section>
+</main>
+
+<script>
+async function loadDashboard() {
+    const res = await fetch("/dashboardStats");
+    const data = await res.json();
+
+    if (!data.success) {
+        alert("Dashboard failed to load.");
+        return;
+    }
+
+    document.getElementById("totalUsers").textContent = data.totalUsers;
+    document.getElementById("totalListings").textContent = data.totalListings;
+    document.getElementById("totalMessages").textContent = data.totalMessages;
+    document.getElementById("activeListings").textContent = data.activeListings;
+
+    const topCourses = document.getElementById("topCourses");
+    topCourses.innerHTML = "";
+
+    if (data.topCourses.length === 0) {
+        topCourses.innerHTML = "<p>No course data yet.</p>";
+    } else {
+        data.topCourses.forEach(course => {
+            const div = document.createElement("div");
+            div.className = "dashboard-row";
+            div.innerHTML = `
+                <strong>${course.course_code}</strong>
+                <span>${course.listing_count} listings</span>
+            `;
+            topCourses.appendChild(div);
+        });
+    }
+
+    const recentListings = document.getElementById("recentListings");
+    recentListings.innerHTML = "";
+
+    if (data.recentListings.length === 0) {
+        recentListings.innerHTML = "<p>No recent listings yet.</p>";
+    } else {
+        data.recentListings.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "dashboard-row";
+            div.innerHTML = `
+                <strong>${item.course_code} - ${item.title}</strong>
+                <span>$${item.price} • ${item.book_condition}</span>
+            `;
+            recentListings.appendChild(div);
+        });
+    }
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

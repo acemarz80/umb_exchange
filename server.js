@@ -596,6 +596,50 @@ io.on("connection", (socket) => {
         console.log("SOCKET DISCONNECTED:", socket.id);
     });
 });
+// =======================
+// ADMIN DASHBOARD STATS
+// =======================
+app.get("/dashboardStats", async (req, res) => {
+    try {
+        const totalUsers = await db.query("SELECT COUNT(*) FROM users");
+        const totalListings = await db.query("SELECT COUNT(*) FROM listings");
+        const totalMessages = await db.query("SELECT COUNT(*) FROM messages");
+
+        const activeListings = await db.query(`
+            SELECT COUNT(*) 
+            FROM listings 
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+        `);
+
+        const topCourses = await db.query(`
+            SELECT course_code, COUNT(*) AS listing_count
+            FROM listings
+            GROUP BY course_code
+            ORDER BY listing_count DESC
+            LIMIT 5
+        `);
+
+        const recentListings = await db.query(`
+            SELECT course_code, title, price, book_condition, created_at
+            FROM listings
+            ORDER BY created_at DESC
+            LIMIT 5
+        `);
+
+        res.json({
+            success: true,
+            totalUsers: totalUsers.rows[0].count,
+            totalListings: totalListings.rows[0].count,
+            totalMessages: totalMessages.rows[0].count,
+            activeListings: activeListings.rows[0].count,
+            topCourses: topCourses.rows,
+            recentListings: recentListings.rows
+        });
+    } catch (err) {
+        console.error("DASHBOARD STATS ERROR:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // =======================
 // START SERVER
