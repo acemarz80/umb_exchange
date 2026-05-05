@@ -38,14 +38,81 @@
         .dropdown-item:hover {
             background-color: #f0f0f0;
         }
-        .star-rating span {
-    font-size: 24px;
-    cursor: pointer;
-    color: #ccc;
+        .peer-rating-input-box {
+    background: linear-gradient(135deg, #f8fafc, #eef6ff);
+    border: 1px solid #dbeafe;
+    border-left: 5px solid #003366;
+    padding: 18px;
+    border-radius: 14px;
+    margin: 18px 0;
 }
 
-.star-rating span.active {
+.peer-rating-input-box h3 {
+    margin: 0 0 6px;
+    color: #003366;
+    font-size: 20px;
+}
+
+.rating-question {
+    margin: 0 0 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.rating-guide {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rating-guide div {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.rating-guide strong {
+    display: block;
     color: #f5b301;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.rating-guide span {
+    display: block;
+    color: #334155;
+    font-weight: 600;
+}
+
+.rating-feedback {
+    background: white;
+    border-radius: 10px;
+    padding: 10px;
+    color: #334155;
+    font-size: 14px;
+    margin: 10px 0;
+}
+
+.star-rating {
+    display: flex;
+    gap: 8px;
+    font-size: 34px;
+    cursor: pointer;
+}
+
+.star-rating span {
+    color: #cbd5e1;
+    transition: 0.2s ease;
+}
+
+.star-rating span.active,
+.star-rating span.hovered {
+    color: #f5b301;
+    transform: scale(1.08);
 }
     </style>
 </head>
@@ -77,24 +144,32 @@
             <option value="Used">Used</option>
         </select>
 
-        <label>
-            How useful was this textbook for the class?
-        </label>
-
-        <p style="font-size: 13px; color: #555; margin-top: -5px;">
-            1★ = Not useful / barely used  
-            <br>5★ = Extremely useful / heavily relied on for exams & assignments
-        </p>
-
-        <div class="star-rating" id="starContainer">
+        <div class="peer-rating-input-box">
+            <h3>Student Insight Rating</h3>
+            <p class="rating-question">How important was this textbook for the class?</p>
+        
+            <div class="rating-guide">
+                <div><strong>1★</strong><span>Not needed</span></div>
+                <div><strong>2★</strong><span>Rarely used</span></div>
+                <div><strong>3★</strong><span>Helpful sometimes</span></div>
+                <div><strong>4★</strong><span>Important</span></div>
+                <div><strong>5★</strong><span>Essential</span></div>
+            </div>
+        
+            <p id="ratingFeedback" class="rating-feedback">
+                Select a rating based on your real experience in the class.
+            </p>
+        
+            <div class="star-rating" id="starContainer">
             <span data-value="1">★</span>
             <span data-value="2">★</span>
             <span data-value="3">★</span>
             <span data-value="4">★</span>
             <span data-value="5">★</span>
         </div>
-
-        <input type="hidden" id="rating" required>
+    </div>
+    
+    <input type="hidden" id="rating" required>
         <p id="ratingError" style="color:red; display:none; font-size:13px;">
             Please select a rating before continuing.
         </p>
@@ -113,13 +188,22 @@
 const stars = document.querySelectorAll(".star-rating span");
 const ratingInput = document.getElementById("rating");
 const ratingError = document.getElementById("ratingError");
+const ratingFeedback = document.getElementById("ratingFeedback");
 
+const ratingMessages = {
+    1: "1★ Not Needed — The book was barely used or not necessary.",
+    2: "2★ Rarely Used — The book was only used a few times.",
+    3: "3★ Helpful Sometimes — Useful for some assignments or studying.",
+    4: "4★ Important — Used often and worth having for the class.",
+    5: "5★ Essential — Required or heavily relied on for success."
+};
 stars.forEach(star => {
     star.addEventListener("click", () => {
         const value = parseInt(star.getAttribute("data-value"));
 
         ratingInput.value = value;
         ratingError.style.display = "none";
+        ratingFeedback.textContent = ratingMessages[value];
 
         stars.forEach(s => s.classList.remove("active"));
 
