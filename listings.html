@@ -56,6 +56,74 @@
         .seller-link:hover {
             text-decoration: underline;
         }
+        .peer-rating-box {
+    margin: 12px 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
+.peer-rating-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.stars {
+    color: #f5b301;
+    font-size: 20px;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+.rating-pill {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: white;
+    background: #003366;
+}
+
+.rating-meaning {
+    font-size: 13px;
+    color: #334155;
+    margin: 6px 0;
+    line-height: 1.4;
+}
+
+.rating-scale {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 11px;
+    color: #64748b;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+.rating-none .rating-pill {
+    background: #64748b;
+}
+
+.rating-low .rating-pill {
+    background: #991b1b;
+}
+
+.rating-mid .rating-pill {
+    background: #ca8a04;
+}
+
+.rating-high .rating-pill {
+    background: #2563eb;
+}
+
+.rating-top .rating-pill {
+    background: #15803d;
+}
     </style>
 </head>
 
@@ -90,14 +158,79 @@ document.getElementById("course-title").textContent =
 
 
 // ⭐ Convert number → stars
+function getRatingInfo(rating) {
+    rating = Number(rating);
+
+    if (!rating) {
+        return {
+            stars: "☆☆☆☆☆",
+            label: "No peer rating yet",
+            meaning: "Students have not rated how useful this book was yet.",
+            className: "rating-none"
+        };
+    }
+
+    if (rating === 1) {
+        return {
+            stars: "★☆☆☆☆",
+            label: "Not Needed",
+            meaning: "Students say this book was barely used or not necessary.",
+            className: "rating-low"
+        };
+    }
+
+    if (rating === 2) {
+        return {
+            stars: "★★☆☆☆",
+            label: "Rarely Used",
+            meaning: "Students say this book was only used a few times.",
+            className: "rating-low"
+        };
+    }
+
+    if (rating === 3) {
+        return {
+            stars: "★★★☆☆",
+            label: "Helpful Sometimes",
+            meaning: "Students say this book was useful for some assignments or studying.",
+            className: "rating-mid"
+        };
+    }
+
+    if (rating === 4) {
+        return {
+            stars: "★★★★☆",
+            label: "Important",
+            meaning: "Students say this book was used often and worth having.",
+            className: "rating-high"
+        };
+    }
+
+    return {
+        stars: "★★★★★",
+        label: "Essential",
+        meaning: "Students say this book was required or very important for success in the class.",
+        className: "rating-top"
+    };
+}
+
 function getStars(rating) {
-    if (!rating) return "<p>No rating</p>";
+    const info = getRatingInfo(rating);
 
-    let stars = "";
-    for (let i = 0; i < rating; i++) stars += "★";
-    for (let i = rating; i < 5; i++) stars += "☆";
-
-    return `<div class="stars">${stars}</div>`;
+    return `
+        <div class="peer-rating-box ${info.className}">
+            <div class="peer-rating-top">
+                <span class="stars">${info.stars}</span>
+                <span class="rating-pill">${info.label}</span>
+            </div>
+            <p class="rating-meaning">${info.meaning}</p>
+            <div class="rating-scale">
+                <span>1 = Not Needed</span>
+                <span>3 = Helpful</span>
+                <span>5 = Essential</span>
+            </div>
+        </div>
+    `;
 }
 
 
